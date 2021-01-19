@@ -6,10 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"runtime"
-	"sync"
 
-	wp "github.com/gammazero/workerpool"
 	"github.com/itzmeanjan/pproto/pb"
 	"google.golang.org/protobuf/proto"
 )
@@ -56,52 +53,10 @@ func Serialize(cpu *pb.CPU) []byte {
 
 }
 
-// WriteCPUDataToFile - Receives binary data to be written to file over
-// go channel and writes that along with respective size of data
-//
-// Writing size is important because while deserializing we'll require
-// that
-func WriteCPUDataToFile(fd io.Writer, data chan []byte, stop chan bool) bool {
-
-	for {
-		select {
-
-		case <-stop:
-			break
-		case d := <-data:
-
-			// store size of message ( in bytes ), in a byte array first
-			// then that's to be written on file handle
-			buf := make([]byte, 4)
-			binary.LittleEndian.PutUint32(buf, uint32(len(d)))
-
-			// first write size of proto message in 4 byte space
-			if _, err := fd.Write(buf); err != nil {
-
-				log.Printf("[!] Error : %s\n", err.Error())
-				return false
-
-			}
-
-			// then write actual message
-			if _, err := fd.Write(d); err != nil {
-
-				log.Printf("[!] Error : %s\n", err.Error())
-				return false
-
-			}
-
-		}
-	}
-
-	log.Println("[+] Writing to file completed")
-	return true
-
-}
-
-// WriteAllToFile - Generate random CPU data `count` times
-// and store them in data file provided
-func WriteAllToFile(file string, count int) bool {
+// SequentialWriteToFile - Given file name and number of protocol buffer
+// entries to be written to file, it'll sequentially write those many entries
+// into file
+func SequentialWriteToFile(file string, count int) bool {
 
 	// truncating/ opening for write/ creating data file, where to store protocol buffer encoded data
 	fd, err := os.OpenFile(file, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
@@ -115,13 +70,79 @@ func WriteAllToFile(file string, count int) bool {
 
 	for i := 0; i < count; i++ {
 
-		if !WriteCPUDataToFile(fd, nil) {
+		data := Serialize(NewCPU())
+		if data == nil {
 			return false
+		}
+
+		// store size of message ( in bytes ), in a byte array first
+		// then that's to be written on file handle
+		buf := make([]byte, 4)
+		binary.LittleEndian.PutUint32(buf, uint32(len(data)))
+
+		// first write size of proto message in 4 byte space
+		if _, err := fd.Write(buf); err != nil {
+
+			log.Printf("[!] Error : %s\n", err.Error())
+			break
+
+		}
+
+		// then write actual message
+		if _, err := fd.Write(data); err != nil {
+
+			log.Printf("[!] Error : %s\n", err.Error())
+			break
+
 		}
 
 	}
 
 	return true
+
+}
+
+// WriteCPUDataToFile - Receives binary data to be written to file over
+// go channel and writes that along with respective size of data
+//
+// Writing size is important because while deserializing we'll require
+// that
+func WriteCPUDataToFile(fd io.Writer, data chan []byte, control chan bool) {
+
+	defer func() {
+		control <- true
+	}()
+
+	for {
+		select {
+
+		case <-control:
+			break
+		case d := <-data:
+
+			// store size of message ( in bytes ), in a byte array first
+			// then that's to be written on file handle
+			buf := make([]byte, 4)
+			binary.LittleEndian.PutUint32(buf, uint32(len(d)))
+
+			// first write size of proto message in 4 byte space
+			if _, err := fd.Write(buf); err != nil {
+
+				log.Printf("[!] Error : %s\n", err.Error())
+				break
+
+			}
+
+			// then write actual message
+			if _, err := fd.Write(d); err != nil {
+
+				log.Printf("[!] Error : %s\n", err.Error())
+				break
+
+			}
+
+		}
+	}
 
 }
 
@@ -141,27 +162,25 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 	// to be invoked when returning from this function scope
 	defer fd.Close()
 
-	// creating worker pool of size same as number of CPUs
-	// available on machine
-	pool := wp.New(runtime.NumCPU())
-
-	// lock to be used for synchronization among
-	// multiple competing workers
-	var lock sync.Mutex
+	data := make(chan []byte)
+	done := make(chan bool)
 
 	for i := 0; i < count; i++ {
 
-		// submitting job to pool
-		pool.Submit(func() {
+		go func() {
 
-			WriteCPUDataToFile(fd, &lock)
+			d := Serialize(NewCPU())
+			if d == nil {
+				done <- false
+				return
+			}
 
-		})
+			data <- d
+			done <- true
+
+		}()
 
 	}
-
-	// waiting for all submitted jobs to get completed
-	pool.StopWait()
 
 	return true
 
