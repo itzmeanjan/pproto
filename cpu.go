@@ -109,39 +109,42 @@ func SequentialWriteToFile(file string, count int) bool {
 // that
 func WriteCPUDataToFile(fd io.Writer, data chan []byte, control chan bool) {
 
+	status := true
 	defer func() {
-		control <- true
+		control <- status
 	}()
 
-	for {
-		select {
+	for d := range data {
 
-		case <-control:
+		if d == nil {
 			break
-		case d := <-data:
+		}
 
-			// store size of message ( in bytes ), in a byte array first
-			// then that's to be written on file handle
-			buf := make([]byte, 4)
-			binary.LittleEndian.PutUint32(buf, uint32(len(d)))
+		// store size of message ( in bytes ), in a byte array first
+		// then that's to be written on file handle
+		buf := make([]byte, 4)
+		binary.LittleEndian.PutUint32(buf, uint32(len(d)))
 
-			// first write size of proto message in 4 byte space
-			if _, err := fd.Write(buf); err != nil {
+		// first write size of proto message in 4 byte space
+		if _, err := fd.Write(buf); err != nil {
 
-				log.Printf("[!] Error : %s\n", err.Error())
-				break
+			log.Printf("[!] Error : %s\n", err.Error())
 
-			}
-
-			// then write actual message
-			if _, err := fd.Write(d); err != nil {
-
-				log.Printf("[!] Error : %s\n", err.Error())
-				break
-
-			}
+			status = false
+			break
 
 		}
+
+		// then write actual message
+		if _, err := fd.Write(d); err != nil {
+
+			log.Printf("[!] Error : %s\n", err.Error())
+
+			status = false
+			break
+
+		}
+
 	}
 
 }
@@ -164,6 +167,9 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 
 	data := make(chan []byte, count)
 	done := make(chan bool, count)
+	control := make(chan bool)
+
+	go WriteCPUDataToFile(fd, data, control)
 
 	for i := 0; i < count; i++ {
 
@@ -182,9 +188,6 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 
 	}
 
-	control := make(chan bool)
-	go WriteCPUDataToFile(fd, data, control)
-
 	_count := 0
 	for d := range done {
 
@@ -200,7 +203,7 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 
 	}
 
-	control <- true
+	data <- nil
 	<-control
 
 	return true
