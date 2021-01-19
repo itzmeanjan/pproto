@@ -1,0 +1,11 @@
+syntax = "proto3";
+option go_package = "github.com/itzmeanjan/pproto/pb";
+
+message CPU {
+    string brand = 1;
+    string name = 2;
+    uint32 cores = 3;
+    uint32 threads = 4;
+    double min_ghz = 5;
+    double max_ghz = 6;
+}
