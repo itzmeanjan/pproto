@@ -4,6 +4,7 @@ import (
 	"math/rand"
 
 	"github.com/itzmeanjan/pproto/pb"
+	"google.golang.org/protobuf/proto"
 )
 
 // NewCPU - Create new random CPU instance
@@ -17,5 +18,18 @@ func NewCPU() *pb.CPU {
 		MinGhz:  rand.Float64() * 5,
 		MaxGhz:  rand.Float64() * 10,
 	}
+
+}
+
+// Serialize - Given CPU struct, serializes it into byte array which
+// can be stored in file
+func Serialize(cpu *pb.CPU) []byte {
+
+	data, err := proto.Marshal(cpu)
+	if err != nil {
+		return nil
+	}
+
+	return data
 
 }
