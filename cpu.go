@@ -14,8 +14,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// NewCPU - Create new random CPU instance
+// NewCPU - Create new CPU instance
 func NewCPU() *pb.CPU {
+
+	return &pb.CPU{
+		Brand:   "X",
+		Name:    "Y",
+		Cores:   1,
+		Threads: 2,
+		MinGhz:  1.0,
+		MaxGhz:  2.0,
+	}
+
+}
+
+// NewRandomCPU - Create new random CPU instance
+func NewRandomCPU() *pb.CPU {
 
 	return &pb.CPU{
 		Brand:   "X",
