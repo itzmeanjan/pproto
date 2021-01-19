@@ -8,7 +8,7 @@ import (
 func main() {
 	dataSeq := "data_seq.bin"
 	dataCon := "data_con.bin"
-	count := 1000
+	count := 10000000
 
 	start := time.Now()
 	ret := WriteAllToFile(dataSeq, count)

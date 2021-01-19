@@ -56,49 +56,45 @@ func Serialize(cpu *pb.CPU) []byte {
 
 }
 
-// WriteCPUDataToFile - Create new CPU struct, serialize it
-// to binary format, which is to be written file, along with it's
-// size in bytes, before actual CPU data, which will help us in decoding so
-func WriteCPUDataToFile(fd io.Writer, lock *sync.Mutex) bool {
+// WriteCPUDataToFile - Receives binary data to be written to file over
+// go channel and writes that along with respective size of data
+//
+// Writing size is important because while deserializing we'll require
+// that
+func WriteCPUDataToFile(fd io.Writer, data chan []byte, stop chan bool) bool {
 
-	// create new message
-	cpu := NewCPU()
-	// serialize message in byte array form
-	data := Serialize(cpu)
-	if data == nil {
-		return false
+	for {
+		select {
+
+		case <-stop:
+			break
+		case d := <-data:
+
+			// store size of message ( in bytes ), in a byte array first
+			// then that's to be written on file handle
+			buf := make([]byte, 4)
+			binary.LittleEndian.PutUint32(buf, uint32(len(d)))
+
+			// first write size of proto message in 4 byte space
+			if _, err := fd.Write(buf); err != nil {
+
+				log.Printf("[!] Error : %s\n", err.Error())
+				return false
+
+			}
+
+			// then write actual message
+			if _, err := fd.Write(d); err != nil {
+
+				log.Printf("[!] Error : %s\n", err.Error())
+				return false
+
+			}
+
+		}
 	}
 
-	// store size of message ( in bytes ), in a byte array first
-	// then that's to be written on file handle
-	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, uint32(len(data)))
-
-	// If it's concurrent call, this critical section of code
-	// needs to be protected using locking mechanism
-	if lock != nil {
-
-		lock.Lock()
-		defer lock.Unlock()
-
-	}
-
-	// first write size of proto message in 4 byte space
-	if _, err := fd.Write(buf); err != nil {
-
-		log.Printf("[!] Error : %s\n", err.Error())
-		return false
-
-	}
-
-	// then write actual message
-	if _, err := fd.Write(data); err != nil {
-
-		log.Printf("[!] Error : %s\n", err.Error())
-		return false
-
-	}
-
+	log.Println("[+] Writing to file completed")
 	return true
 
 }
@@ -118,7 +114,11 @@ func WriteAllToFile(file string, count int) bool {
 	defer fd.Close()
 
 	for i := 0; i < count; i++ {
-		WriteCPUDataToFile(fd, nil)
+
+		if !WriteCPUDataToFile(fd, nil) {
+			return false
+		}
+
 	}
 
 	return true
