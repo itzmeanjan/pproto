@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"os"
 
 	"github.com/itzmeanjan/pproto/pb"
 	"google.golang.org/protobuf/proto"
@@ -66,6 +67,28 @@ func WriteCPUDataToFile(fd io.Writer) bool {
 	if _, err := fd.Write(data); err != nil {
 		log.Printf("[!] Error : %s\n", err.Error())
 		return false
+	}
+
+	return true
+
+}
+
+// WriteAllToFile - Generate random CPU data `count` times
+// and store them in data file provided
+func WriteAllToFile(file string, count int) bool {
+
+	// truncating/ opening for write/ creating data file, where to store protocol buffer encoded data
+	fd, err := os.OpenFile(file, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Printf("[!] Error : %s\n", err.Error())
+		return false
+	}
+
+	// to be invoked when returning from this function scope
+	defer fd.Close()
+
+	for i := 0; i < count; i++ {
+		WriteCPUDataToFile(fd)
 	}
 
 	return true
