@@ -162,8 +162,8 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 	// to be invoked when returning from this function scope
 	defer fd.Close()
 
-	data := make(chan []byte)
-	done := make(chan bool)
+	data := make(chan []byte, count)
+	done := make(chan bool, count)
 
 	for i := 0; i < count; i++ {
 
@@ -181,6 +181,27 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 		}()
 
 	}
+
+	control := make(chan bool)
+	go WriteCPUDataToFile(fd, data, control)
+
+	_count := 0
+	for d := range done {
+
+		if !d {
+			return false
+		}
+
+		_count++
+
+		if _count == count {
+			break
+		}
+
+	}
+
+	control <- true
+	<-control
 
 	return true
 
