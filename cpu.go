@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"time"
 
 	wp "github.com/gammazero/workerpool"
 	"github.com/itzmeanjan/pproto/pb"
@@ -44,6 +45,10 @@ func NewRandomCPU() *pb.CPU {
 // Serialize - Given CPU struct, serializes it into byte array which
 // can be stored in file
 func Serialize(cpu *pb.CPU) []byte {
+
+	// synthetic delay creation, to denote we're getting
+	// data from some busy IO resource i.e. DB, let's say
+	time.Sleep(time.Duration(1) * time.Microsecond)
 
 	data, err := proto.Marshal(cpu)
 	if err != nil {
@@ -154,7 +159,8 @@ func WriteCPUDataToFile(fd io.Writer, data chan []byte, control chan bool) {
 // ConcurrentWriteAllToFile - Concurrently generate random CPU data `count` times
 // using worker pool and write them in data file provided
 //
-// Nothing but concurrent implementation of above function
+// Nothing but concurrent implementation of above function, but file writer is
+// working sequentially
 func ConcurrentWriteAllToFile(file string, count int) bool {
 
 	// truncating/ opening for write/ creating data file, where to store protocol buffer encoded data
