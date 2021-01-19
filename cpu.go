@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/binary"
+	"io"
+	"log"
 	"math/rand"
 
 	"github.com/itzmeanjan/pproto/pb"
@@ -27,9 +30,44 @@ func Serialize(cpu *pb.CPU) []byte {
 
 	data, err := proto.Marshal(cpu)
 	if err != nil {
+		log.Printf("[!] Error : %s\n", err.Error())
 		return nil
 	}
 
 	return data
+
+}
+
+// WriteCPUDataToFile - Create new CPU struct, serialize it
+// to binary format, which is to be written file, along with it's
+// size in bytes, before actual CPU data, which will help us in decoding so
+func WriteCPUDataToFile(fd io.Writer) bool {
+
+	// create new message
+	cpu := NewCPU()
+	// serialize message in byte array form
+	data := Serialize(cpu)
+	if data == nil {
+		return false
+	}
+
+	// store size of message ( in bytes ), in a byte array first
+	// then that's to be written on file handle
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, uint32(len(data)))
+
+	// first write size of proto message in 4 byte space
+	if _, err := fd.Write(buf); err != nil {
+		log.Printf("[!] Error : %s\n", err.Error())
+		return false
+	}
+
+	// then write actual message
+	if _, err := fd.Write(data); err != nil {
+		log.Printf("[!] Error : %s\n", err.Error())
+		return false
+	}
+
+	return true
 
 }
