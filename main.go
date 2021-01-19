@@ -6,11 +6,12 @@ import (
 )
 
 func main() {
-	file := "data.bin"
+	dataSeq := "data_seq.bin"
+	dataCon := "data_con.bin"
 	count := 1000
 
 	start := time.Now()
-	ret := WriteAllToFile(file, count)
+	ret := WriteAllToFile(dataSeq, count)
 	end := time.Now()
 
 	if ret {
@@ -18,7 +19,7 @@ func main() {
 	}
 
 	start = time.Now()
-	ret = ConcurrentWriteAllToFile(file, count)
+	ret = ConcurrentWriteAllToFile(dataCon, count)
 	end = time.Now()
 
 	if ret {
