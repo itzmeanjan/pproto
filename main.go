@@ -1,7 +1,20 @@
 package main
 
-import "log"
+import (
+	"log"
+	"time"
+)
 
 func main() {
-	log.Println("Hello World")
+	file := "data.bin"
+	count := 1000
+
+	start := time.Now()
+	ret := WriteAllToFile(file, count)
+	end := time.Now()
+
+	if ret {
+		log.Printf("[+] Wrote %d protocol buffer encoded entries in %s [ Sequential ]\n", count, end.Sub(start))
+	}
+
 }
