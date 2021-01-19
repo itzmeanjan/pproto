@@ -6,7 +6,9 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime"
 
+	wp "github.com/gammazero/workerpool"
 	"github.com/itzmeanjan/pproto/pb"
 	"google.golang.org/protobuf/proto"
 )
@@ -165,43 +167,24 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 	// to be invoked when returning from this function scope
 	defer fd.Close()
 
+	pool := wp.New(runtime.NumCPU())
+
 	data := make(chan []byte, count)
-	done := make(chan bool, count)
 	control := make(chan bool)
 
 	go WriteCPUDataToFile(fd, data, control)
 
 	for i := 0; i < count; i++ {
 
-		go func() {
+		pool.Submit(func() {
 
-			d := Serialize(NewCPU())
-			if d == nil {
-				done <- false
-				return
-			}
+			data <- Serialize(NewCPU())
 
-			data <- d
-			done <- true
-
-		}()
+		})
 
 	}
 
-	_count := 0
-	for d := range done {
-
-		if !d {
-			return false
-		}
-
-		_count++
-
-		if _count == count {
-			break
-		}
-
-	}
+	pool.StopWait()
 
 	data <- nil
 	<-control
