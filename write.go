@@ -78,8 +78,9 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 
 	pool := wp.New(runtime.NumCPU())
 	data := make(chan []byte, count)
+	done := make(chan bool)
 
-	go WriteCPUDataToFile(fd, data)
+	go WriteCPUDataToFile(fd, count, data, done)
 
 	for i := 0; i < count; i++ {
 
@@ -92,9 +93,9 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 	}
 
 	pool.StopWait()
-	// letting file writer go routine know no more data
-	// to be sent for writing to file, it can exit now
-	data <- nil
+	// Blocking call i.e. waiting for writer go routine
+	// to complete its job
+	<-done
 
 	return true
 
@@ -105,17 +106,27 @@ func ConcurrentWriteAllToFile(file string, count int) bool {
 //
 // Writing size is important because while deserializing we'll require
 // that
-func WriteCPUDataToFile(fd io.Writer, data chan []byte) {
+func WriteCPUDataToFile(fd io.Writer, count int, data chan []byte, done chan bool) {
+
+	// Letting coordinator know writing to file has been completed
+	// or some kind of error has occurred
+	//
+	// To be invoked when getting out of this execution scope
+	defer func() {
+		done <- true
+	}()
+
+	// How many data chunks received over channel
+	//
+	// To be compared against data chunks which were supposed
+	// to be received, before deciding whether it's time to get out of
+	// below loop or not
+	var iter int
 
 	for d := range data {
 
-		// As soon as nil is received we return, by this coordinator go routine denotes
-		// no more data to be sent to this go routine for writing to file
-		//
-		// So we'll can safely out of this loop
-		if d == nil {
-			break
-		}
+		// received new data which needs to be written to file
+		iter++
 
 		// store size of message ( in bytes ), in a byte array first
 		// then that's to be written on file handle
@@ -136,6 +147,13 @@ func WriteCPUDataToFile(fd io.Writer, data chan []byte) {
 			log.Printf("[!] Error : %s\n", err.Error())
 			break
 
+		}
+
+		// As soon as this condition is met,
+		// we can safely get out of this loop
+		// i.e. denoting all processing has been done
+		if iter == count {
+			break
 		}
 
 	}
