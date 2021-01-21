@@ -8,6 +8,7 @@ import (
 func main() {
 	dataSeq := "data_seq.bin"
 	dataCon := "data_con.bin"
+	compDataSeq := "comp_data_seq.bin"
 	count := 10000000
 
 	start := time.Now()
@@ -40,5 +41,13 @@ func main() {
 
 	if ret {
 		log.Printf("[+] Read %d protocol buffer encoded entries in %s [ Concurrent ]\n", _count, end.Sub(start))
+	}
+
+	start = time.Now()
+	ret = CompressedSequentialWriteToFile(compDataSeq, count)
+	end = time.Now()
+
+	if ret {
+		log.Printf("[+] Wrote %d protocol buffer encoded entries in %s [ Sequential + Compressed ]\n", count, end.Sub(start))
 	}
 }
