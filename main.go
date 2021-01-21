@@ -33,4 +33,12 @@ func main() {
 	if ret {
 		log.Printf("[+] Read %d protocol buffer encoded entries in %s [ Sequential ]\n", _count, end.Sub(start))
 	}
+
+	start = time.Now()
+	ret, _count = ConcurrentReadFromFile(dataCon)
+	end = time.Now()
+
+	if ret {
+		log.Printf("[+] Read %d protocol buffer encoded entries in %s [ Concurrent ]\n", _count, end.Sub(start))
+	}
 }

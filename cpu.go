@@ -43,7 +43,7 @@ func Serialize(cpu *pb.CPU) []byte {
 
 	// synthetic delay creation, to denote we're getting
 	// data from some busy IO resource i.e. DB, let's say
-	time.Sleep(time.Duration(1) * time.Microsecond)
+	time.Sleep(time.Duration(rand.Intn(400)+100) * time.Microsecond)
 
 	data, err := proto.Marshal(cpu)
 	if err != nil {
