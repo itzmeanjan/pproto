@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"io"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/itzmeanjan/pproto/pb"
 	"google.golang.org/protobuf/proto"
@@ -79,4 +81,45 @@ func SequentialReadFromFile(file string) (bool, int) {
 	}
 
 	return true, count
+}
+
+// ConcurrentReadFromFile - ...
+func ConcurrentReadFromFile(file string) (bool, int) {
+
+	// Opening file in read only mode
+	fd, err := os.OpenFile(file, os.O_RDONLY, 0644)
+	if err != nil {
+
+		log.Printf("[!] Error : %s\n", err.Error())
+		return false, 0
+
+	}
+
+	// file handle to be closed when whole file is read i.e.
+	// EOF reached
+	defer fd.Close()
+
+}
+
+// UnmarshalData - Given byte array read from file, attempting
+// to unmarshall it into structured data, with synthetic delay
+//
+// Also letting coordinator go routine know that this worker
+// has completed its job
+func UnmarshalData(data []byte, control chan bool) {
+
+	// synthetic delay to emulate database interaction
+	time.Sleep(time.Duration(rand.Intn(400)+100) * time.Microsecond)
+
+	cpu := &pb.CPU{}
+	if err := proto.Unmarshal(data, cpu); err != nil {
+
+		log.Printf("[!] Error : %s\n", err.Error())
+		control <- false
+		return
+
+	}
+
+	control <- true
+
 }
