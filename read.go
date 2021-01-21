@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"io"
 	"log"
-	"math/rand"
 	"os"
 	"runtime"
 	"time"
@@ -70,7 +69,7 @@ func SequentialReadFromFile(file string) (bool, int) {
 		}
 
 		// Synthetic delay to emulate interaction with DB
-		time.Sleep(time.Duration(rand.Intn(400)+100) * time.Microsecond)
+		time.Sleep(time.Duration(1) * time.Microsecond)
 
 		// attempting to deserialize protocol buffer encoded
 		// data into something meaningful
@@ -188,7 +187,7 @@ func ConcurrentReadFromFile(file string) (bool, int) {
 func UnmarshalData(data []byte, control chan bool) {
 
 	// synthetic delay to emulate database interaction
-	time.Sleep(time.Duration(rand.Intn(400)+100) * time.Microsecond)
+	time.Sleep(time.Duration(1) * time.Microsecond)
 
 	cpu := &pb.CPU{}
 	if err := proto.Unmarshal(data, cpu); err != nil {
