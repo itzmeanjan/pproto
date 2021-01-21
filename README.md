@@ -4,14 +4,14 @@ Performant Protocol Buffer based data snapshotting mechanism ⚡️
 
 ## Problem Statement 🤨
 
-I had a few database tables, each with >=10M entries and required to take snapshot of whole database into a file so that whole DB can be restored later from that single file.
+We had a few database tables, each with >=10M entries and required to take snapshot of whole database into a file so that whole DB can be restored later from that single file.
 
 ## Solution ⚒️
 
 I'm creating this POC to determine which way I should go for solving aforementioned problem.
 
 
-1. I thought of starting with generating dummy random data and serializing them into JSON, which are eventually getting persisted into sink file, sequentially. But as you have already guessed, problems I'll face
+1. I thought of starting with generating dummy random data and serializing them into JSON, which are eventually getting persisted into sink file, sequentially. But as you have already guessed, problems we'll face
 
     - Extremely large snapshot size
     - Very time consuming operation
@@ -50,7 +50,7 @@ func protoSerialize(fd io.Writer, data []byte) {
 }
 ```
 
-Now I've a mechanism to effieciently encode and decode large dataset using protocol buffer.
+Now we've a mechanism to effieciently encode and decode large dataset using protocol buffer.
 
 I've written a function to sequentially serialize randomly generated protocol buffer data and put them in a file while first putting length of data and then actual data.
 
@@ -61,14 +61,41 @@ But as you've already guessed, this time problem was very slow processing. I att
 - Workers sent that byte array to writer go routine, via go channel
 - Writer go routine attempts to write to file as soon as it receives data over channel
 
-And as a result of this I just got 680% 🚀 performance improvement, in running time of program.
+And as a result of this I just got ~680% 🚀 performance improvement, in running time of program.
 
 ![screenshot](sc/sc_1.png)
 
-I generated 1M similar entries, serialized them into protocol buffer _( with a synthetic delay of 1us )_ and wrote them into target files `data_seq.bin` & `data_con.bin`, for sequential & concurrent processing respectively.
+I generated 1M similar entries, serialized them into protocol buffer _( with a synthetic delay of 1μs )_ and wrote them into target files `data_seq.bin` & `data_con.bin`, for sequential & concurrent processing respectively.
 
 After checking their sha256 hash, I was sure both serial & concurrent versions were working correctly.
 
-3. Next step is to write an efficient deserializer.
+3. Now I need to deserialize data from file, for that I'm simply using plain old sequential way,
 
-**To be continued ...**
+- I read 4 bytes of chunk from file.
+- Then decode it to `uint32`, which gives me what's next chunk size, to be read.
+- I read next data chunk of 👆 size, which is protocol buffer encoded data of our interest.
+- Deserialize it into structured format.
+
+I keep following above flow until **EOF** is hit.
+
+👆 works fine, but when snapshot size grows larger, it takes longer to recover from snapshot.
+
+4. For addressing that, I'm going to introduce concurrency while processing data chunks read from file.
+
+**Why can't we concurrently read from file ?**
+
+We may not know what exactly is data chunk size, in which a single protocol buffer encoded struct is placed. All we know is
+
+```
+<size-of-next-chunk> + <proto-serialized-data>
+```
+
+from start of file to end. `size-of-next-chunk` is encoded in 4 bytes space. 
+
+So, I read byte chunks from file in sequential fashion. But each of those byte chunks get processed i.e. deserialized with a synthetic delay of 1μs to emulate I/O ops, by multiple workers, taken from worker pool. And go channel based synchronization is used to manage them i.e. let all of them complete their job.
+
+And I've got 👇 result for reading & writing of 1M entries with synthetic delay of 1μs on a desktop machine with i3 Gen V with 12GB RAM + HDD
+
+![screenshot](./sc/sc_2.png)
+
+Using concurrent processing of snapshot we get ~471% 🚀 performance improvement over its sequential counterpart.
