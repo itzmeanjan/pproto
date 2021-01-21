@@ -6,8 +6,10 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime"
 	"time"
 
+	wp "github.com/gammazero/workerpool"
 	"github.com/itzmeanjan/pproto/pb"
 	"google.golang.org/protobuf/proto"
 )
@@ -103,6 +105,7 @@ func ConcurrentReadFromFile(file string) (bool, int) {
 	// count of entries read back from file
 	var count uint64
 
+	pool := wp.New(runtime.NumCPU())
 	control := make(chan bool, 1000)
 	entryCount := make(chan uint64)
 	done := make(chan bool)
@@ -144,16 +147,31 @@ func ConcurrentReadFromFile(file string) (bool, int) {
 		}
 
 		count++
-		go UnmarshalData(data, control)
+
+		// Submitting job to worker pool
+		pool.Submit(func() {
+
+			func(_data []byte) {
+				UnmarshalData(_data, control)
+			}(data)
+
+		})
 
 	}
 
 	// letting coordinator know that `count` many workers
 	// should let it know about their respective status of job
 	entryCount <- count
+
 	// waiting for coordinator to let us know
 	// that all workers have completed their job
 	<-done
+
+	// no more jobs to be submitted to pool
+	// but all existing one to be completed
+	//
+	// this call is redundant here, but still made
+	pool.StopWait()
 
 	return true, int(count)
 
