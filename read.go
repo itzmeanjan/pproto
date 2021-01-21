@@ -69,6 +69,9 @@ func SequentialReadFromFile(file string) (bool, int) {
 
 		}
 
+		// Synthetic delay to emulate interaction with DB
+		time.Sleep(time.Duration(rand.Intn(400)+100) * time.Microsecond)
+
 		// attempting to deserialize protocol buffer encoded
 		// data into something meaningful
 		cpu := &pb.CPU{}
