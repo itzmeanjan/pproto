@@ -99,3 +99,33 @@ And I've got 👇 result for reading & writing of 1M entries with synthetic dela
 ![screenshot](./sc/sc_2.png)
 
 Using concurrent processing of snapshot we get ~471% 🚀 performance improvement over its sequential counterpart.
+
+## Usage
+
+For running this simulated version
+
+```bash
+make run
+```
+
+Two files will be created in this directory
+
+```bash
+$ ls data_*
+data_con.bin	data_seq.bin
+```
+
+As they're writing same content to both files, just in different way i.e. sequentially & concurrently, checksum of their content will be same
+
+```bash
+$ shasum data_*
+e2b12866fc038c55b7ab274421550c5329e777f3  data_con.bin
+e2b12866fc038c55b7ab274421550c5329e777f3  data_seq.bin
+```
+
+> Note : If you make any changes in protocol definition files 👇
+
+```bash
+make clean # deletes previous binding
+make gen # generates new go lang binding
+```
