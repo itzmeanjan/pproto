@@ -1,3 +1,7 @@
+> **Warning**
+
+**I've stopped maintaining this project !**
+
 # pproto 🚀
 
 Performant Protocol Buffer based data snapshotting mechanism ⚡️
